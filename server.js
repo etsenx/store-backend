@@ -7,6 +7,7 @@ const usersRoutes = require("./routes/users");
 const productRoutes = require("./routes/product");
 const productsRoutes = require("./routes/products");
 const categoryRoutes = require("./routes/category");
+const categoriesRoutes = require("./routes/categories");
 const auth = require("./middlewares/auth");
 
 const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
@@ -22,10 +23,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.post("/register", register);
 app.post("/login", login);
 
-app.use("/users", usersRoutes);
+app.use("/users", auth, usersRoutes);
 app.use("/product", productRoutes);
 app.use("/products", productsRoutes);
 app.use("/category", categoryRoutes);
+app.use("/categories", categoriesRoutes);
 
 app.get("*", (req, res) => {
   res.send({ message: "Sumber daya yang diminta tidak ada" });

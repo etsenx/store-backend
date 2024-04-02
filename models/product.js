@@ -33,10 +33,6 @@ const productSchema = new mongoose.Schema({
   images: {
     type: [
       {
-        id: {
-          type: mongoose.Schema.Types.ObjectId,
-          required: true,
-        },
         link: {
           type: String,
           required: true,
@@ -52,9 +48,6 @@ const productSchema = new mongoose.Schema({
   reviews: {
     type: [
       {
-        id: {
-          type: mongoose.Schema.Types.ObjectId,
-        },
         review: {
           type: String,
         },
