@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const bcrypt = require("bcrypt");
 
 module.exports.register = (req, res, next) => {
   const { email, password, name, avatar } = req.body;
@@ -85,7 +86,7 @@ module.exports.changePrivilege = (req, res, next) => {
   )
     .then((user) => {
       if (!user) {
-        throw new Error("User not found", { statusCode: 404 });
+        throw new Error("User not found");
       }
       res.status(200).send(user);
     })
@@ -100,13 +101,13 @@ module.exports.changePrivilege = (req, res, next) => {
     });
 };
 
-module.exports.changeAvatar = (req, res, next) => {
+module.exports.changeProfile = (req, res, next) => {
   const { _id } = req.user;
-  const newAvatar = req.body.avatar;
-  User.findOneAndUpdate({ _id }, { avatar: newAvatar }, { new: true })
+  const { avatar, email, name } = req.body;
+  User.findOneAndUpdate({ _id }, { avatar, email, name }, { new: true })
     .then((user) => {
       if (!user) {
-        throw new Error("User not found", { statusCode: 404 });
+        throw new Error("User not found");
       }
       res.status(200).send(user);
     })
@@ -123,10 +124,46 @@ module.exports.changeAvatar = (req, res, next) => {
 
 module.exports.changePassword = (req, res, next) => {
   const { _id } = req.user;
+  const { oldPassword, newPassword } = req.body;
   User.findById(_id)
     .select("+password")
     .orFail()
     .then((user) => {
-      console.log(user);
+      return bcrypt.compare(oldPassword, user.password).then((matched) => {
+        if (!matched) {
+          throw new Error("Incorrect Password");
+        }
+        return bcrypt.hash(newPassword, 10).then((hashedPass) => {
+          return User.findOneAndUpdate({ _id }, { password: hashedPass });
+        });
+      });
+    })
+    .then(() => {
+      res.status(204).send("Password Changed");
+    })
+    .catch((err) => {
+      if (err.message === "Incorrect Password") {
+        next({
+          statusCode: 401,
+          message: "Incorrect Password",
+        });
+      }
+    });
+};
+
+module.exports.deleteUser = (req, res, next) => {
+  const userId = req.params.id;
+  User.deleteOne({ _id: userId })
+    .orFail()
+    .then(() => {
+      res.status(204).send("User deleted successfully");
+    })
+    .catch((err) => {
+      if (err.name === "DocumentNotFoundError") {
+        next({
+          statusCode: 404,
+          message: "User nor found",
+        });
+      }
     });
 };

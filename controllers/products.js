@@ -52,3 +52,20 @@ module.exports.editProductImage = (req, res, next) => {
     { new: true }
   ).then((product) => res.send(product));
 };
+
+module.exports.deleteProduct = (req, res, next) => {
+  const productId = req.params.id;
+  Product.deleteOne({ productId })
+    .orFail()
+    .then(() => {
+      res.status(204).send("Product deleted successfully");
+    })
+    .catch((err) => {
+      if (err.name === "DocumentNotFoundError") {
+        next({
+          statusCode: 404,
+          message: "Product not found",
+        });
+      }
+    });
+};
