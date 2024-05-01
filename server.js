@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const { celebrate, Joi, isCelebrateError } = require("celebrate");
+const cors = require("cors");
 const { login, register } = require("./controllers/users");
 const usersRoutes = require("./routes/users");
 const productRoutes = require("./routes/product");
@@ -9,6 +10,8 @@ const productsRoutes = require("./routes/products");
 const categoryRoutes = require("./routes/category");
 const categoriesRoutes = require("./routes/categories");
 const auth = require("./middlewares/auth");
+const controlCache = require("./middlewares/cache");
+require('dotenv').config();
 
 const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
 mongoose.connect(MONGO_URI);
@@ -17,8 +20,19 @@ const port = 3000;
 
 const app = express();
 
+const originListString = process.env.ALLOWED_ORIGIN;
+const originList = originListString.split(',');
+const corsOption = {
+  origin: originList,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOption));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(controlCache);
 
 app.post("/register", register);
 app.post("/login", login);
