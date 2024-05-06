@@ -1,10 +1,35 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const cloudinary = require("../utils/cloudinary");
+const crypto = require("crypto");
 
 module.exports.register = (req, res, next) => {
-  const { email, password, name, avatar } = req.body;
+  const { email, password, name } = req.body;
+  const imageFile = req.file.buffer;
+  const publicId = crypto.randomBytes(16).toString("hex");
+  console.log(publicId);
+  const avatar = `tripleshop/users/avatar/${publicId}`;
   User.createUser(email, password, name, avatar)
+    .then((user) => {
+      new Promise((resolve) => {
+        cloudinary.v2.uploader
+          .upload_stream(
+            {
+              folder: "tripleshop/users/avatar",
+              public_id: publicId,
+            },
+            (error, uploadResult) => {
+              if (error) {
+                console.log(error);
+              }
+              return resolve(uploadResult);
+            }
+          )
+          .end(imageFile);
+      })
+      return user;
+    })
     .then((user) => {
       res.status(201).send({
         email: user.email,
@@ -104,6 +129,7 @@ module.exports.changePrivilege = (req, res, next) => {
 module.exports.changeProfile = (req, res, next) => {
   const { _id } = req.user;
   const { avatar, email, name } = req.body;
+  cloudinary.v2.uploader.upload(avatar);
   User.findOneAndUpdate({ _id }, { avatar, email, name }, { new: true })
     .then((user) => {
       if (!user) {

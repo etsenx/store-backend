@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
@@ -11,7 +12,7 @@ const categoryRoutes = require("./routes/category");
 const categoriesRoutes = require("./routes/categories");
 const auth = require("./middlewares/auth");
 const controlCache = require("./middlewares/cache");
-require('dotenv').config();
+const multer = require("multer");
 
 const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
 mongoose.connect(MONGO_URI);
@@ -34,7 +35,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(controlCache);
 
-app.post("/register", register);
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+app.post("/register", upload.single("file"), register);
 app.post("/login", login);
 
 app.use("/users", auth, usersRoutes);
