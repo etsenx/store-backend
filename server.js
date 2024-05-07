@@ -53,7 +53,6 @@ app.get("*", (req, res) => {
 
 app.use((err, req, res, next) => {
   let { statusCode, message } = err;
-  console.log(err);
   if (isCelebrateError(err)) {
     statusCode = 400;
     message = err.message;

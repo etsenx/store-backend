@@ -8,10 +8,10 @@ module.exports.register = (req, res, next) => {
   const { email, password, name } = req.body;
   const imageFile = req.file.buffer;
   const publicId = crypto.randomBytes(16).toString("hex");
-  console.log(publicId);
   const avatar = `tripleshop/users/avatar/${publicId}`;
   User.createUser(email, password, name, avatar)
     .then((user) => {
+      console.log("this is running");
       new Promise((resolve) => {
         cloudinary.v2.uploader
           .upload_stream(
