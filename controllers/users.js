@@ -11,7 +11,6 @@ module.exports.register = (req, res, next) => {
   const avatar = `tripleshop/users/avatar/${publicId}`;
   User.createUser(email, password, name, avatar)
     .then((user) => {
-      console.log("this is running");
       new Promise((resolve) => {
         cloudinary.v2.uploader
           .upload_stream(
