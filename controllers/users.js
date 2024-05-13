@@ -26,7 +26,7 @@ module.exports.register = (req, res, next) => {
             }
           )
           .end(imageFile);
-      })
+      });
       return user;
     })
     .then((user) => {
@@ -91,7 +91,13 @@ module.exports.getCurrentUser = (req, res, next) => {
   const { _id } = req.user;
   User.findById(_id)
     .orFail()
-    .then((user) => res.status(200).send(user))
+    .then((user) => res.status(200).send({
+      avatar: user.avatar,
+      email: user.email,
+      name: user.name,
+      privilege: user.privilege,
+      registerDate: user.registerDate,
+    }))
     .catch(next);
 };
 
@@ -127,14 +133,56 @@ module.exports.changePrivilege = (req, res, next) => {
 
 module.exports.changeProfile = (req, res, next) => {
   const { _id } = req.user;
-  const { avatar, email, name } = req.body;
-  cloudinary.v2.uploader.upload(avatar);
+  const { previousAvatar, email, name } = req.body;
+  let avatar = previousAvatar;
+  let imageFile = null;
+  let publicId = "";
+  if (req.file) {
+    imageFile = req.file.buffer;
+    publicId = crypto.randomBytes(16).toString("hex");
+    avatar = `tripleshop/users/avatar/${publicId}`;
+  }
+
   User.findOneAndUpdate({ _id }, { avatar, email, name }, { new: true })
     .then((user) => {
       if (!user) {
         throw new Error("User not found");
       }
-      res.status(200).send(user);
+      if (imageFile) {
+        new Promise((resolve) => {
+          cloudinary.v2.uploader
+            .upload_stream(
+              {
+                folder: "tripleshop/users/avatar",
+                public_id: publicId,
+              },
+              (error, uploadResult) => {
+                if (error) {
+                  console.log(error);
+                }
+                return resolve(uploadResult);
+              }
+            )
+            .end(imageFile);
+          cloudinary.v2.api
+            .delete_resources(previousAvatar, {
+              type: "upload",
+              resource_type: "image",
+            })
+            .then(console.log);
+        });
+      }
+      return user;
+    })
+    .then((user) => {
+      console.log(user);
+      res.status(200).send({
+        avatar: user.avatar,
+        email: user.email,
+        name: user.name,
+        privilege: user.privilege,
+        registerDate: user.registerDate,
+      });
     })
     .catch((err) => {
       if (err.message === "User not found") {
