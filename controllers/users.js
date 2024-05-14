@@ -10,8 +10,8 @@ module.exports.register = (req, res, next) => {
   const publicId = crypto.randomBytes(16).toString("hex");
   const avatar = `tripleshop/users/avatar/${publicId}`;
   User.createUser(email, password, name, avatar)
-    .then((user) => {
-      new Promise((resolve) => {
+    .then(async (user) => {
+      await new Promise((resolve) => {
         cloudinary.v2.uploader
           .upload_stream(
             {
@@ -91,13 +91,15 @@ module.exports.getCurrentUser = (req, res, next) => {
   const { _id } = req.user;
   User.findById(_id)
     .orFail()
-    .then((user) => res.status(200).send({
-      avatar: user.avatar,
-      email: user.email,
-      name: user.name,
-      privilege: user.privilege,
-      registerDate: user.registerDate,
-    }))
+    .then((user) =>
+      res.status(200).send({
+        avatar: user.avatar,
+        email: user.email,
+        name: user.name,
+        privilege: user.privilege,
+        registerDate: user.registerDate,
+      })
+    )
     .catch(next);
 };
 
@@ -131,7 +133,7 @@ module.exports.changePrivilege = (req, res, next) => {
     });
 };
 
-module.exports.changeProfile = (req, res, next) => {
+module.exports.changeProfile = async (req, res, next) => {
   const { _id } = req.user;
   const { previousAvatar, email, name } = req.body;
   let avatar = previousAvatar;
@@ -144,12 +146,12 @@ module.exports.changeProfile = (req, res, next) => {
   }
 
   User.findOneAndUpdate({ _id }, { avatar, email, name }, { new: true })
-    .then((user) => {
+    .then(async (user) => {
       if (!user) {
         throw new Error("User not found");
       }
       if (imageFile) {
-        new Promise((resolve) => {
+        await new Promise((resolve, reject) => {
           cloudinary.v2.uploader
             .upload_stream(
               {
@@ -159,23 +161,21 @@ module.exports.changeProfile = (req, res, next) => {
               (error, uploadResult) => {
                 if (error) {
                   console.log(error);
+                } else {
+                  cloudinary.v2.api.delete_resources(previousAvatar, {
+                    type: "upload",
+                    resource_type: "image",
+                  });
                 }
                 return resolve(uploadResult);
               }
             )
             .end(imageFile);
-          cloudinary.v2.api
-            .delete_resources(previousAvatar, {
-              type: "upload",
-              resource_type: "image",
-            })
-            .then(console.log);
         });
       }
       return user;
     })
     .then((user) => {
-      console.log(user);
       res.status(200).send({
         avatar: user.avatar,
         email: user.email,
@@ -189,6 +189,11 @@ module.exports.changeProfile = (req, res, next) => {
         next({
           statusCode: 404,
           message: err.message,
+        });
+      } else if (err.code === 11000) {
+        next({
+          statusCode: 409,
+          message: "User already exists",
         });
       }
       next(err);

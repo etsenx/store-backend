@@ -11,7 +11,6 @@ const productsRoutes = require("./routes/products");
 const categoryRoutes = require("./routes/category");
 const categoriesRoutes = require("./routes/categories");
 const auth = require("./middlewares/auth");
-const controlCache = require("./middlewares/cache");
 const multer = require("multer");
 
 const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
@@ -33,7 +32,6 @@ app.use(cors(corsOption));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(controlCache);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
