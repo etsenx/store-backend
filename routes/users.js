@@ -1,20 +1,24 @@
 const router = require("express").Router();
 const {
   getCurrentUser,
-  changePrivilege,
+  getAllUsers,
+  getUserById,
   changePassword,
   changeProfile,
+  changeProfileById,
   deleteUser,
 } = require("../controllers/users");
 const multer = require("multer");
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage })
+const upload = multer({ storage: storage });
 
 router.get("/me", getCurrentUser);
-router.post("/change-privilege", changePrivilege);
+router.get("/all", getAllUsers);
+router.get("/:id", getUserById);
 router.patch("/change-password", changePassword);
 router.patch("/change-profile", upload.single("file"), changeProfile);
+router.patch("/change-profile/:id", changeProfileById);
 router.delete("/delete/:id", deleteUser);
 
 module.exports = router;

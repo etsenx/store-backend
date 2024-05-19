@@ -103,33 +103,33 @@ module.exports.getCurrentUser = (req, res, next) => {
     .catch(next);
 };
 
-module.exports.changePrivilege = (req, res, next) => {
-  const userId = req.body.userid;
-  const updatePrivilege = req.body.privilege;
+module.exports.getAllUsers = (req, res, next) => {
+  User.find()
+    .orFail()
+    .then((users) => {
+      res.status(200).json(
+        users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          privilege: user.privilege,
+        }))
+      );
+    });
+};
 
-  if (!["user", "admin"].includes(updatePrivilege)) {
-    return res.status(400).send({ message: "Invalid value" });
-  }
-
-  User.findOneAndUpdate(
-    { _id: userId },
-    { privilege: updatePrivilege },
-    { new: true }
-  )
+module.exports.getUserById = (req, res, next) => {
+  const { id } = req.params;
+  User.findById(id)
+    .orFail()
     .then((user) => {
-      if (!user) {
-        throw new Error("User not found");
-      }
-      res.status(200).send(user);
-    })
-    .catch((err) => {
-      if (err.message === "User not found") {
-        next({
-          statusCode: 404,
-          message: err.message,
-        });
-      }
-      next(err);
+      res.status(200).send({
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        privilege: user.privilege,
+        registerDate: user.registerDate,
+      });
     });
 };
 
@@ -200,6 +200,56 @@ module.exports.changeProfile = async (req, res, next) => {
     });
 };
 
+module.exports.changeProfileById = (req, res, next) => {
+  const { _id } = req.user;
+  const { id: reqId } = req.params;
+  const { name, email, privilege: updatePrivilege } = req.body;
+  if (!["user", "admin"].includes(updatePrivilege)) {
+    return res.status(400).send({ message: "Invalid value" });
+  }
+  User.findById(_id).then((user) => {
+    if (user.privilege === "admin") {
+      User.findOneAndUpdate(
+        { _id: reqId },
+        { name: name, email: email, privilege: updatePrivilege },
+        { new: true }
+      )
+        .then((updatedUser) => {
+          if (!updatedUser) {
+            throw new Error("User not found");
+          }
+          res.status(200).send({
+            avatar: updatedUser.avatar,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            privilege: updatedUser.privilege,
+            registerDate: updatedUser.registerDate,
+          });
+        })
+        .catch((err) => {
+          console.log(err);
+          if (err.message === "User not found") {
+            next({
+              statusCode: 404,
+              message: err.message,
+            });
+          } else if (err.code === 11000) {
+            next({
+              statusCode: 409,
+              message: "Email already exists",
+            })
+          }
+        });
+    } else {
+      throw new Error("Not Authorized");
+    }
+  }).catch((err) => {
+    if (err.message === "Not Authorized") {
+      res.status(401).send("Not Authorized");
+    }
+  });
+};
+
 module.exports.changePassword = (req, res, next) => {
   const { _id } = req.user;
   const { oldPassword, newPassword } = req.body;
@@ -240,7 +290,7 @@ module.exports.deleteUser = (req, res, next) => {
       if (err.name === "DocumentNotFoundError") {
         next({
           statusCode: 404,
-          message: "User nor found",
+          message: "User not found",
         });
       }
     });
