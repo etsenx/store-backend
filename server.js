@@ -42,8 +42,8 @@ app.post("/login", login);
 app.use("/users", auth, usersRoutes);
 app.use("/product", productRoutes);
 app.use("/products", productsRoutes);
-app.use("/category", categoryRoutes);
-app.use("/categories", categoriesRoutes);
+app.use("/category", auth, categoryRoutes);
+app.use("/categories", auth, categoriesRoutes);
 
 app.get("*", (req, res) => {
   res.send({ message: "Sumber daya yang diminta tidak ada" });
@@ -54,6 +54,9 @@ app.use((err, req, res, next) => {
   if (isCelebrateError(err)) {
     statusCode = 400;
     message = err.message;
+  }
+  if (!statusCode) {
+    statusCode = 500;
   }
   res.status(statusCode).send({
     message: statusCode === 500 ? "Terjadi kesalahan pada server" : message,

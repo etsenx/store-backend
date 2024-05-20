@@ -200,54 +200,42 @@ module.exports.changeProfile = async (req, res, next) => {
     });
 };
 
-module.exports.changeProfileById = (req, res, next) => {
-  const { _id } = req.user;
-  const { id: reqId } = req.params;
-  const { name, email, privilege: updatePrivilege } = req.body;
-  if (!["user", "admin"].includes(updatePrivilege)) {
-    return res.status(400).send({ message: "Invalid value" });
-  }
-  User.findById(_id).then((user) => {
-    if (user.privilege === "admin") {
-      User.findOneAndUpdate(
-        { _id: reqId },
-        { name: name, email: email, privilege: updatePrivilege },
-        { new: true }
-      )
-        .then((updatedUser) => {
-          if (!updatedUser) {
-            throw new Error("User not found");
-          }
-          res.status(200).send({
-            avatar: updatedUser.avatar,
-            email: updatedUser.email,
-            name: updatedUser.name,
-            privilege: updatedUser.privilege,
-            registerDate: updatedUser.registerDate,
-          });
-        })
-        .catch((err) => {
-          console.log(err);
-          if (err.message === "User not found") {
-            next({
-              statusCode: 404,
-              message: err.message,
-            });
-          } else if (err.code === 11000) {
-            next({
-              statusCode: 409,
-              message: "Email already exists",
-            })
-          }
-        });
+module.exports.changeProfileById = async (req, res, next) => {
+  try {
+    const { id: reqId } = req.params;
+    const { name, email, privilege: updatePrivilege } = req.body;
+
+    if (!["user", "admin"].includes(updatePrivilege)) {
+      throw { statusCode: 400, message: "Invalid value" };
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: reqId },
+      { name, email, privilege: updatePrivilege },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    res.status(200).send({
+      avatar: updatedUser.avatar,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      privilege: updatedUser.privilege,
+      registerDate: updatedUser.registerDate,
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      next({
+        statusCode: 409,
+        message: "Email already exists",
+      });
     } else {
-      throw new Error("Not Authorized");
+      next(err);
     }
-  }).catch((err) => {
-    if (err.message === "Not Authorized") {
-      res.status(401).send("Not Authorized");
-    }
-  });
+  }
 };
 
 module.exports.changePassword = (req, res, next) => {
@@ -279,19 +267,19 @@ module.exports.changePassword = (req, res, next) => {
     });
 };
 
-module.exports.deleteUser = (req, res, next) => {
-  const userId = req.params.id;
-  User.deleteOne({ _id: userId })
-    .orFail()
-    .then(() => {
-      res.status(204).send("User deleted successfully");
-    })
-    .catch((err) => {
-      if (err.name === "DocumentNotFoundError") {
-        next({
-          statusCode: 404,
-          message: "User not found",
-        });
-      }
-    });
+module.exports.deleteUser = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    await User.deleteOne({ _id: userId }).orFail();
+    res.status(204).send("User deleted successfully");
+  } catch (err) {
+    if (err.name === "DocumentNotFoundError") {
+      next({
+        statusCode: 404,
+        message: "User not found",
+      });
+    } else {
+      next(err);
+    }
+  }
 };
