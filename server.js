@@ -40,7 +40,7 @@ app.post("/register", upload.single("file"), register);
 app.post("/login", login);
 
 app.use("/users", auth, usersRoutes);
-app.use("/product", productRoutes);
+app.use("/product", auth, productRoutes);
 app.use("/products", productsRoutes);
 app.use("/category", auth, categoryRoutes);
 app.use("/categories", auth, categoriesRoutes);

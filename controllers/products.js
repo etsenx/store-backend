@@ -9,18 +9,27 @@ module.exports.getProductReviews = (req, res, next) => {
   Product.findOne({ productId }).then((product) => res.send(product.reviews));
 };
 
-module.exports.addProduct = (req, res, next) => {
-  const { productId, name, description, price, stock, category, seller } =
-    req.body;
-  Product.create({
-    productId,
-    name,
-    description,
-    price,
-    stock,
-    category,
-    seller,
-  }).then((product) => res.send(product));
+module.exports.addProduct = async (req, res, next) => {
+  try {
+    const { name, description, price, stock, category, seller } = req.body;
+
+    const existingProduct = await Product.findOne({ name });
+    if (existingProduct) {
+      throw { statusCode: 400, message: "Product already exists" };
+    }
+
+    const createdProduct = await Product.create({
+      name,
+      description,
+      price,
+      stock,
+      category,
+      seller,
+    });
+    res.send(createdProduct);
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.addProductReview = (req, res, next) => {
