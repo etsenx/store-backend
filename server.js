@@ -39,11 +39,11 @@ const upload = multer({ storage: storage });
 app.post("/register", upload.single("file"), register);
 app.post("/login", login);
 
-app.use("/users", auth, usersRoutes);
-app.use("/product", auth, productRoutes);
+app.use("/users", usersRoutes);
+app.use("/product", productRoutes);
 app.use("/products", productsRoutes);
 app.use("/category", auth, categoryRoutes);
-app.use("/categories", auth, categoriesRoutes);
+app.use("/categories", categoriesRoutes);
 
 app.get("*", (req, res) => {
   res.send({ message: "Sumber daya yang diminta tidak ada" });

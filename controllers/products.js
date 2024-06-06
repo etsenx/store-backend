@@ -1,19 +1,122 @@
 const Product = require("../models/product");
 const cloudinary = require("../utils/cloudinary");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
-module.exports.getAllProducts = (req, res, next) => {
-  Product.find().then((products) => res.send(products));
+module.exports.getProducts = async (req, res, next) => {
+  try {
+    const searchTerm = req.query.term;
+    const limit = parseInt(req.query.limit) || 0;
+
+    const pipeline = [
+      { $sort: { createdAt: -1 } },
+      {
+        $project: {
+          reviewsLength: { $size: "$reviews" },
+          otherFields: {
+            $filter: {
+              input: { $objectToArray: "$$ROOT" },
+              cond: {
+                $not: {
+                  $in: ["$$this.k", ["reviews"]]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              { _id: "$_id", totalReviews: "$reviewsLength" },
+              { $arrayToObject: "$otherFields" }
+            ]
+          }
+        }
+      }
+    ];
+    
+    
+    if (searchTerm) {
+      pipeline.unshift({
+        $match: {
+          name: { $regex: searchTerm, $options: "i" },
+        },
+      });
+    }
+
+    if (limit > 0) {
+      pipeline.push({ $limit: limit });
+    }
+
+    const products = await Product.aggregate(pipeline).exec();
+    res.send(products);
+  } catch (err) {
+    next(err);
+  }
 };
 
-module.exports.getProductById = (req, res, next) => {
-  const productId = req.params.id;
-  Product.findOne({ _id: productId }).then((product) => res.send(product));
+module.exports.getProductById = async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    const product = await Product.findOne({ _id: productId }).select(
+      "-reviews"
+    );
+    if (!product) {
+      return res.status(404).send({ message: "Product not found" });
+    }
+    res.send(product);
+  } catch (error) {
+    next(error);
+  }
 };
 
-module.exports.getProductReviews = (req, res, next) => {
-  const productId = req.params.id;
-  Product.findOne({ productId }).then((product) => res.send(product.reviews));
+module.exports.getProductReviews = async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    // const page = parseInt(req.query.page) || 1;
+    // const limit = parseInt(req.query.limit) || 10;
+    // const skip = (page - 1) * limit;
+    // const product = await Product.aggregate([
+    //   { $match: { _id: new mongoose.Types.ObjectId(productId) } },
+    //   { $project: {
+    //       totalReviews: { $size: "$reviews" },
+    //       reviews: { $slice: ["$reviews", skip, limit] }
+    //     }
+    //   }
+    // ]);
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).send({ message: "Product not found" });
+    }
+
+    // const reviews = product[0].reviews.slice(skip, skip + limit);
+    // const hasMore = skip + limit < product[0].totalReviews;
+
+    res.send({ reviews: product.reviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+module.exports.getAverageRating = async (req, res, next) => {
+  const productId = req.params.productId;
+
+  try {
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const averageRating = product.averageRating;
+
+    res.json({ averageRating });
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.addProduct = async (req, res, next) => {
@@ -39,14 +142,23 @@ module.exports.addProduct = async (req, res, next) => {
   }
 };
 
-module.exports.addProductReview = (req, res, next) => {
-  const productId = req.params.id;
-  const { user, review, rating } = req.body;
-  Product.findOneAndUpdate(
-    { productId },
-    { $push: { reviews: { review, rating, user } } },
-    { new: true }
-  ).then((product) => res.send(product));
+module.exports.addProductReview = async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    const { review, rating } = req.body;
+    const userId = req.user._id;
+    const product = await Product.findOneAndUpdate(
+      { _id: productId },
+      { $push: { reviews: { review, rating, user: userId } } },
+      { new: true }
+    );
+    if (product) {
+      await product.updateRatings();
+      res.send(product);
+    }
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.editProduct = (req, res, next) => {
@@ -124,32 +236,34 @@ module.exports.editPrimaryImage = async (req, res, next) => {
     const { productId, imageLink } = req.body;
 
     if (!productId || !imageLink) {
-      throw new Error('Product ID and image link are required');
+      throw new Error("Product ID and image link are required");
     }
 
     const product = await Product.findById(productId);
 
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
-    const currentPrimaryImage = product.images.find(img => img.isPrimary);
+    const currentPrimaryImage = product.images.find((img) => img.isPrimary);
 
     if (currentPrimaryImage) {
       currentPrimaryImage.isPrimary = false;
     }
 
-    const newPrimaryImage = product.images.find(img => img.link === imageLink);
+    const newPrimaryImage = product.images.find(
+      (img) => img.link === imageLink
+    );
 
     if (!newPrimaryImage) {
-      throw new Error('Image not found');
+      throw new Error("Image not found");
     }
 
     newPrimaryImage.isPrimary = true;
 
     await product.save();
 
-    res.status(200).json({ message: 'Primary image updated successfully' });
+    res.status(200).json({ message: "Primary image updated successfully" });
   } catch (err) {
     next(err);
   }

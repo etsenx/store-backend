@@ -41,6 +41,10 @@ const productSchema = new mongoose.Schema({
     ],
     default: [],
   },
+  ratings: {
+    type: Number,
+    default: 0,
+  },
   reviews: {
     type: [
       {
@@ -59,6 +63,21 @@ const productSchema = new mongoose.Schema({
     ],
     default: [],
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
+
+productSchema.methods.updateRatings = async function() {
+  let totalRating = 0;
+  this.reviews.forEach(review => {
+    totalRating += review.rating;
+  });
+  this.ratings = Math.round((totalRating / this.reviews.length) * 100) / 100;
+
+  await this.save();
+};
+
 
 module.exports = mongoose.model("product", productSchema);

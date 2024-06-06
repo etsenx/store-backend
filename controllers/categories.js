@@ -1,11 +1,16 @@
 const Category = require("../models/category");
 
-module.exports.getAllCategories = async (req, res, next) => {
+module.exports.getCategories = async (req, res, next) => {
   try {
-    const allCategoriesName = await Category.find()
-      .select("name")
-      .select("_id");
-    res.send(allCategoriesName);
+    let query = Category.find();
+
+    if (req.query.ids) {
+      const categoryIds = req.query.ids.split(',');
+      query = query.where('_id').in(categoryIds);
+    }
+
+    const allCategories = await query.select('name _id').exec();
+    res.send(allCategories);
   } catch (err) {
     next(err);
   }

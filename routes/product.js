@@ -2,13 +2,15 @@ const router = require("express").Router();
 const {
   getProductById,
   getProductReviews,
+  getAverageRating,
   addProduct,
   addProductReview,
   editProduct,
   editProductImage,
   deleteProduct,
 } = require("../controllers/products");
-const checkAdmin = require("../middlewares/checkAdmin")
+const checkAdmin = require("../middlewares/checkAdmin");
+const auth = require("../middlewares/auth");
 const multer = require("multer");
 
 const storage = multer.memoryStorage();
@@ -16,10 +18,11 @@ const upload = multer({ storage: storage });
 
 router.get("/:id", getProductById);
 router.get("/:id/reviews", getProductReviews);
-router.post("/add", addProduct);
-router.put("/:id/add-review", addProductReview);
-router.patch("/:id/edit", editProduct);
-router.patch("/:id/edit-image", upload.array("files"), checkAdmin, editProductImage);
-router.delete("/:id", deleteProduct);
+router.get("/:productId/average-rating", getAverageRating);
+router.post("/add", auth, checkAdmin, addProduct);
+router.put("/:id/add-review", auth, addProductReview);
+router.patch("/:id/edit", auth, checkAdmin, editProduct);
+router.patch("/:id/edit-image", upload.array("files"), auth, checkAdmin, editProductImage);
+router.delete("/:id", auth, deleteProduct);
 
 module.exports = router;

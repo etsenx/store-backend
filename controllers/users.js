@@ -133,6 +133,16 @@ module.exports.getUserById = (req, res, next) => {
     });
 };
 
+module.exports.getUsersName = async (req, res, next) => {
+  const { userIds } = req.body;
+  try {
+    const users = await User.find({ _id: { $in: userIds } });
+    res.status(200).send(users);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports.changeProfile = async (req, res, next) => {
   const { _id } = req.user;
   const { previousAvatar, email, name } = req.body;
