@@ -103,19 +103,13 @@ module.exports.getCurrentUser = (req, res, next) => {
     .catch(next);
 };
 
-module.exports.getAllUsers = (req, res, next) => {
-  User.find()
-    .orFail()
-    .then((users) => {
-      res.status(200).json(
-        users.map((user) => ({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          privilege: user.privilege,
-        }))
-      );
-    });
+module.exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().select('id email name privilege');
+    res.status(200).json(users);
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.getUserById = (req, res, next) => {
@@ -136,7 +130,7 @@ module.exports.getUserById = (req, res, next) => {
 module.exports.getUsersName = async (req, res, next) => {
   const { userIds } = req.body;
   try {
-    const users = await User.find({ _id: { $in: userIds } });
+    const users = await User.find({ _id: { $in: userIds } }).select('id name');
     res.status(200).send(users);
   } catch (err) {
     next(err);

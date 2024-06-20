@@ -17,7 +17,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 router.get("/me", auth, getCurrentUser);
-router.get("/all", auth, getAllUsers);
+router.get("/all", auth, checkAdmin, getAllUsers);
 router.get("/:id", auth, getUserById);
 router.post("/username", getUsersName);
 router.patch("/change-password", auth, changePassword);

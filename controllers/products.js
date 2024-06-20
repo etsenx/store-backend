@@ -36,8 +36,7 @@ module.exports.getProducts = async (req, res, next) => {
         }
       }
     ];
-    
-    
+
     if (searchTerm) {
       pipeline.unshift({
         $match: {
