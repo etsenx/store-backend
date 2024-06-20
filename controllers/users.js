@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const Cart = require("../models/cart");
 const bcrypt = require("bcrypt");
 const cloudinary = require("../utils/cloudinary");
 const crypto = require("crypto");
@@ -103,19 +104,13 @@ module.exports.getCurrentUser = (req, res, next) => {
     .catch(next);
 };
 
-module.exports.getAllUsers = (req, res, next) => {
-  User.find()
-    .orFail()
-    .then((users) => {
-      res.status(200).json(
-        users.map((user) => ({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          privilege: user.privilege,
-        }))
-      );
-    });
+module.exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().select("id email name privilege");
+    res.status(200).json(users);
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.getUserById = (req, res, next) => {
@@ -136,12 +131,72 @@ module.exports.getUserById = (req, res, next) => {
 module.exports.getUsersName = async (req, res, next) => {
   const { userIds } = req.body;
   try {
-    const users = await User.find({ _id: { $in: userIds } });
+    const users = await User.find({ _id: { $in: userIds } }).select("id name");
     res.status(200).send(users);
   } catch (err) {
     next(err);
   }
-}
+};
+
+module.exports.getCart = async (req, res, next) => {
+  try {
+    const cart = await Cart.findOne({ userId: req.user._id });
+    if (!cart) {
+      throw { statusCode: 404, message: "Cart not found" };
+    }
+    res.status(200).json(cart);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+module.exports.addToCart = async (req, res, next) => {
+  try {
+    const { productId, reqCount } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    const product = { productId, quantity: reqCount };
+    await user.addToCart(product);
+
+    const addedProduct = await Cart.findById(user.cartId);
+    const insertedProduct = addedProduct.items.find((item) => item.productId.toString() === productId);
+
+    res
+      .status(200)
+      .json({
+        message: "Item added to cart successfully",
+        product: insertedProduct,
+      });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+module.exports.updateCartItemQuantity = async (req, res, next) => {
+  try {
+    const { productId, quantity } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    await user.updateCartItemQuantity(productId, quantity);
+
+    res.status(200).json({
+      message: "Cart item quantity updated successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 module.exports.changeProfile = async (req, res, next) => {
   const { _id } = req.user;
@@ -291,5 +346,47 @@ module.exports.deleteUser = async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+};
+
+module.exports.removeFromCart = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    await user.removeFromCart(productId);
+
+    res.status(200).json({
+      message: "Item removed from cart successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.usersRegisteredOverview = async (req, res, next) => {
+  try {
+    const totalUsers = await User.countDocuments();
+
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7);
+
+    const newUsers = await User.countDocuments({
+      registerDate: { $gte: lastWeek },
+    });
+
+    res.status(200).json({
+      total: totalUsers,
+      additionalInfo: newUsers,
+    });
+  } catch (error) {
+    console.error("Error fetching users summary", error);
+    next(error);
   }
 };

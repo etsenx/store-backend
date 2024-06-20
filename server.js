@@ -10,7 +10,11 @@ const productRoutes = require("./routes/product");
 const productsRoutes = require("./routes/products");
 const categoryRoutes = require("./routes/category");
 const categoriesRoutes = require("./routes/categories");
+const orderRoutes = require("./routes/order");
+const ordersRoutes = require("./routes/orders");
+const chartRoutes = require("./routes/chart");
 const auth = require("./middlewares/auth");
+const checkAdmin = require("./middlewares/checkAdmin");
 const multer = require("multer");
 
 const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
@@ -44,6 +48,9 @@ app.use("/product", productRoutes);
 app.use("/products", productsRoutes);
 app.use("/category", auth, categoryRoutes);
 app.use("/categories", categoriesRoutes);
+app.use("/order", orderRoutes);
+app.use("/orders", ordersRoutes);
+app.use("/chart", auth, checkAdmin, chartRoutes)
 
 app.get("*", (req, res) => {
   res.send({ message: "Sumber daya yang diminta tidak ada" });
@@ -51,7 +58,6 @@ app.get("*", (req, res) => {
 
 app.use((err, req, res, next) => {
   let { statusCode, message } = err;
-  console.log(err);
   if (isCelebrateError(err)) {
     statusCode = 400;
     message = err.message;

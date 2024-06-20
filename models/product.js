@@ -19,7 +19,7 @@ const productSchema = new mongoose.Schema({
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "category",
+    ref: "Category",
     required: true,
   },
   seller: {
@@ -57,7 +57,7 @@ const productSchema = new mongoose.Schema({
         },
         user: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "user",
+          ref: "User",
         },
       },
     ],
@@ -80,4 +80,4 @@ productSchema.methods.updateRatings = async function() {
 };
 
 
-module.exports = mongoose.model("product", productSchema);
+module.exports = mongoose.model("Product", productSchema);

@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 module.exports.getProducts = async (req, res, next) => {
   try {
     const searchTerm = req.query.term;
+
     const limit = parseInt(req.query.limit) || 0;
 
     const pipeline = [
@@ -18,26 +19,25 @@ module.exports.getProducts = async (req, res, next) => {
               input: { $objectToArray: "$$ROOT" },
               cond: {
                 $not: {
-                  $in: ["$$this.k", ["reviews"]]
-                }
-              }
-            }
-          }
-        }
+                  $in: ["$$this.k", ["reviews"]],
+                },
+              },
+            },
+          },
+        },
       },
       {
         $replaceRoot: {
           newRoot: {
             $mergeObjects: [
               { _id: "$_id", totalReviews: "$reviewsLength" },
-              { $arrayToObject: "$otherFields" }
-            ]
-          }
-        }
-      }
+              { $arrayToObject: "$otherFields" },
+            ],
+          },
+        },
+      },
     ];
-    
-    
+
     if (searchTerm) {
       pipeline.unshift({
         $match: {
@@ -64,7 +64,7 @@ module.exports.getProductById = async (req, res, next) => {
       "-reviews"
     );
     if (!product) {
-      return res.status(404).send({ message: "Product not found" });
+      throw { statusCode: 404, message: "Product not found" };
     }
     res.send(product);
   } catch (error) {
@@ -72,35 +72,72 @@ module.exports.getProductById = async (req, res, next) => {
   }
 };
 
-module.exports.getProductReviews = async (req, res, next) => {
+module.exports.getProductsById = async (req, res, next) => {
   try {
-    const productId = req.params.id;
-    // const page = parseInt(req.query.page) || 1;
-    // const limit = parseInt(req.query.limit) || 10;
-    // const skip = (page - 1) * limit;
-    // const product = await Product.aggregate([
-    //   { $match: { _id: new mongoose.Types.ObjectId(productId) } },
-    //   { $project: {
-    //       totalReviews: { $size: "$reviews" },
-    //       reviews: { $slice: ["$reviews", skip, limit] }
-    //     }
-    //   }
-    // ]);
+    const productIds = req.body;
+    const pipeline = [
+      {
+        $match: {
+          _id: { $in: productIds.map(id => new mongoose.Types.ObjectId(id)) }
+        },
+      },
+      {
+        $project: {
+          reviewsLength: { $size: "$reviews" },
+          otherFields: {
+            $filter: {
+              input: { $objectToArray: "$$ROOT" },
+              cond: {
+                $not: {
+                  $in: ["$$this.k", ["reviews"]],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              { _id: "$_id", totalReviews: "$reviewsLength" },
+              { $arrayToObject: "$otherFields" },
+            ],
+          },
+        },
+      },
+    ];
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).send({ message: "Product not found" });
+    const products = await Product.aggregate(pipeline).exec();
+
+    if (!products || products.length === 0) {
+      throw { statusCode: 404, message: "Product not found" };
     }
 
-    // const reviews = product[0].reviews.slice(skip, skip + limit);
-    // const hasMore = skip + limit < product[0].totalReviews;
-
-    res.send({ reviews: product.reviews });
-  } catch (error) {
-    next(error);
+    res.status(200).send(products);
+  } catch (err) {
+    next(err);
   }
 };
 
+module.exports.getProductReviews = async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      throw { statusCode: 404, message: "Product not found" };
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      throw { statusCode: 404, message: "Product not found" };
+    }
+
+    res.status(200).send({ reviews: product.reviews });
+  } catch (err) {
+    next(err);
+  }
+};
 
 module.exports.getAverageRating = async (req, res, next) => {
   const productId = req.params.productId;
@@ -108,12 +145,12 @@ module.exports.getAverageRating = async (req, res, next) => {
   try {
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      throw { statusCode: 404, message: "Product not found" };
     }
 
     const averageRating = product.averageRating;
 
-    res.json({ averageRating });
+    res.status(200).json({ averageRating });
   } catch (err) {
     next(err);
   }
@@ -136,7 +173,7 @@ module.exports.addProduct = async (req, res, next) => {
       category,
       seller,
     });
-    res.send(createdProduct);
+    res.status(200).send(createdProduct);
   } catch (err) {
     next(err);
   }
@@ -154,7 +191,7 @@ module.exports.addProductReview = async (req, res, next) => {
     );
     if (product) {
       await product.updateRatings();
-      res.send(product);
+      res.status(200).send(product);
     }
   } catch (err) {
     next(err);
@@ -316,6 +353,26 @@ module.exports.deleteProductImages = async (req, res, next) => {
     await product.save();
 
     res.status(200).json({ message: "Images deleted successfully", product });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.deleteProductReview = async (req, res, next) => {
+  try {
+    const { productId, reviewId } = req.params;
+
+    const product = await Product.findOneAndUpdate(
+      { _id: productId },
+      { $pull: { reviews: { _id: reviewId } } },
+      { new: true }
+    );
+
+    if (product) {
+      res.status(204).send({ message: 'Review deleted successfully' });
+    } else {
+      res.status(404).send({ message: 'Product not found' });
+    }
   } catch (err) {
     next(err);
   }

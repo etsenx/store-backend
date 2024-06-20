@@ -8,6 +8,7 @@ const {
   editProduct,
   editProductImage,
   deleteProduct,
+  deleteProductReview
 } = require("../controllers/products");
 const checkAdmin = require("../middlewares/checkAdmin");
 const auth = require("../middlewares/auth");
@@ -24,5 +25,6 @@ router.put("/:id/add-review", auth, addProductReview);
 router.patch("/:id/edit", auth, checkAdmin, editProduct);
 router.patch("/:id/edit-image", upload.array("files"), auth, checkAdmin, editProductImage);
 router.delete("/:id", auth, deleteProduct);
+router.delete('/:productId/review/:reviewId', auth, checkAdmin, deleteProductReview);
 
 module.exports = router;
