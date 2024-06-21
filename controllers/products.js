@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 module.exports.getProducts = async (req, res, next) => {
   try {
     const searchTerm = req.query.term;
+
     const limit = parseInt(req.query.limit) || 0;
 
     const pipeline = [
@@ -74,25 +75,15 @@ module.exports.getProductById = async (req, res, next) => {
 module.exports.getProductReviews = async (req, res, next) => {
   try {
     const productId = req.params.id;
-    // const page = parseInt(req.query.page) || 1;
-    // const limit = parseInt(req.query.limit) || 10;
-    // const skip = (page - 1) * limit;
-    // const product = await Product.aggregate([
-    //   { $match: { _id: new mongoose.Types.ObjectId(productId) } },
-    //   { $project: {
-    //       totalReviews: { $size: "$reviews" },
-    //       reviews: { $slice: ["$reviews", skip, limit] }
-    //     }
-    //   }
-    // ]);
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      throw { statusCode: 404, message: "Product not found" };
+    }
 
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).send({ message: "Product not found" });
+      throw { statusCode: 404, message: "Product not found" };
     }
-
-    // const reviews = product[0].reviews.slice(skip, skip + limit);
-    // const hasMore = skip + limit < product[0].totalReviews;
 
     res.send({ reviews: product.reviews });
   } catch (error) {
@@ -107,7 +98,7 @@ module.exports.getAverageRating = async (req, res, next) => {
   try {
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      throw { statusCode: 404, message: "Product not found" };
     }
 
     const averageRating = product.averageRating;
