@@ -35,39 +35,40 @@ const userSchema = new mongoose.Schema({
   registerDate: {
     type: Date,
     default: Date.now(),
-  }
+  },
+  cartId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Cart",
+  },
 });
 
 userSchema.statics.findUserByCredentials = function findUserByCredentials(
   email,
   password
 ) {
-  return (
-    this.findOne({ email })
-      // Select password specifically because default doesnt return password
-      .select("+password")
-      .then((user) => {
-        if (!user) {
+  return this.findOne({ email })
+    .select("+password")
+    .then((user) => {
+      if (!user) {
+        return Promise.reject(
+          Object.assign(new Error("Email not found"), {
+            statusCode: 401,
+          })
+        );
+      }
+
+      return bcrypt.compare(password, user.password).then((matched) => {
+        if (!matched) {
           return Promise.reject(
-            Object.assign(new Error("Email not found"), {
+            Object.assign(new Error("Incorrect password"), {
               statusCode: 401,
             })
           );
         }
 
-        return bcrypt.compare(password, user.password).then((matched) => {
-          if (!matched) {
-            return Promise.reject(
-              Object.assign(new Error("Incorrect password"), {
-                statusCode: 401,
-              })
-            );
-          }
-
-          return user;
-        });
-      })
-  );
+        return user;
+      });
+    });
 };
 
 userSchema.statics.createUser = function createUser(
@@ -87,4 +88,37 @@ userSchema.statics.createUser = function createUser(
     .then((user) => user);
 };
 
-module.exports = mongoose.model("user", userSchema);
+userSchema.methods.addToCart = async function addToCart(product) {
+  const cart = await Cart.findOneAndUpdate(
+    { userId: this._id },
+    { $push: { items: product } },
+    { new: true, upsert: true }
+  );
+
+  this.cartId = cart._id;
+  return this.save();
+};
+
+userSchema.methods.removeFromCart = async function removeFromCart(productId) {
+  const cart = await Cart.findOneAndUpdate(
+    { userId: this._id },
+    { $pull: { items: { productId: productId } } },
+    { new: true }
+  );
+
+  this.cartId = cart._id;
+  return this.save();
+};
+
+userSchema.methods.updateCartItemQuantity =
+  async function updateCartItemQuantity(productId, quantity) {
+    const cart = await Cart.findOneAndUpdate(
+      { userId: this._id, "items.productId": productId },
+      { $set: { "items.$.quantity": quantity } },
+      { new: true }
+    );
+
+    this.cartId = cart._id;
+    return this.save();
+  };
+module.exports = mongoose.model("User", userSchema);

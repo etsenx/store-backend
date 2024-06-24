@@ -105,7 +105,7 @@ module.exports.getCurrentUser = (req, res, next) => {
 
 module.exports.getAllUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select('id email name privilege');
+    const users = await User.find().select("id email name privilege");
     res.status(200).json(users);
   } catch (err) {
     next(err);
@@ -130,12 +130,54 @@ module.exports.getUserById = (req, res, next) => {
 module.exports.getUsersName = async (req, res, next) => {
   const { userIds } = req.body;
   try {
-    const users = await User.find({ _id: { $in: userIds } }).select('id name');
+    const users = await User.find({ _id: { $in: userIds } }).select("id name");
     res.status(200).send(users);
   } catch (err) {
     next(err);
   }
-}
+};
+
+module.exports.addToCart = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    const product = { productId, quantity };
+    await user.addToCart(product);
+
+    res
+      .status(200)
+      .json({ message: "Item added to cart successfully", cart: user.cart });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.updateCartItemQuantity = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    await user.updateCartItemQuantity(productId, quantity);
+
+    res
+      .status(200)
+      .json({
+        message: "Cart item quantity updated successfully",
+        cart: user.cart,
+      });
+  } catch (err) {
+    next(err);
+  }
+};
 
 module.exports.changeProfile = async (req, res, next) => {
   const { _id } = req.user;
@@ -285,5 +327,27 @@ module.exports.deleteUser = async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+};
+
+module.exports.removeFromCart = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      throw { statusCode: 404, message: "User not found" };
+    }
+
+    await user.removeFromCart(productId);
+
+    res
+      .status(200)
+      .json({
+        message: "Item removed from cart successfully",
+        cart: user.cart,
+      });
+  } catch (err) {
+    next(err);
   }
 };

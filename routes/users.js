@@ -9,6 +9,8 @@ const {
   changeProfileById,
   deleteUser,
 } = require("../controllers/users");
+const cartRoutes = require("./cart");
+
 const multer = require("multer");
 const checkAdmin = require("../middlewares/checkAdmin");
 const auth = require("../middlewares/auth");
@@ -24,5 +26,6 @@ router.patch("/change-password", auth, changePassword);
 router.patch("/change-profile", auth, upload.single("file"), changeProfile);
 router.patch("/change-profile/:id", auth, checkAdmin, changeProfileById);
 router.delete("/delete/:id", auth, checkAdmin, deleteUser);
+router.use("/cart", cartRoutes);
 
 module.exports = router;
