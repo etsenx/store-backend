@@ -17,7 +17,7 @@ const auth = require("./middlewares/auth");
 const checkAdmin = require("./middlewares/checkAdmin");
 const multer = require("multer");
 
-const MONGO_URI = "mongodb://127.0.0.1:27017/tripleshop";
+const MONGO_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGO_URI);
 
 const port = 3000;
